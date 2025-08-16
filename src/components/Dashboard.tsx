@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { io, Socket } from 'socket.io-client'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
-import { getSportIcon, markets, selections, sports, categorizeMarket, categorizeSelection, generateExchangerUrl } from '../lib/constants'
 
 type Opportunity = {
   id: string
@@ -12,62 +11,162 @@ type Opportunity = {
   runner: string
   arb_percentage: number
   lastSeen: number
-  marketCategory?: string
-  selectionCategory?: string
-  isExpiring?: boolean
   betfair_url?: string
   betfair_market_id?: string
   event_id_betfair?: string
   event_id_provider?: string
 }
 
-const DEFAULT_MARKETS = [
-  { code: 'golbet724', id: 6 },
-  { code: 'papa', id: 7 },
-  { code: 'golbet724_pre', id: 9 },
-  { code: 'onwin', id: 18547 },
-]
-
 export default function Dashboard() {
   const navigate = useNavigate()
   const [isConnected, setIsConnected] = useState(false)
-  const [availableProviders, setAvailableProviders] = useState<{ label: string, value: string }[]>([])
-  const [selectedProviders, setSelectedProviders] = useState<string[]>([])
-  const [selectedMarkets, setSelectedMarkets] = useState<string[]>([])
-  const [selectedSelections, setSelectedSelections] = useState<string[]>([])
-  const [selectedSports, setSelectedSports] = useState<string[]>([])
-  const [debugMode, setDebugMode] = useState(false)
-  const [soundEnabled, setSoundEnabled] = useState(true)
-  const [soundVolume, setSoundVolume] = useState(0.7)
   const [opps, setOpps] = useState<Opportunity[]>([])
-  const [filtersLoaded, setFiltersLoaded] = useState(false)
+  const [soundEnabled, setSoundEnabled] = useState(true)
+  const [showFilters, setShowFilters] = useState(false)
   const [selectedExchanger, setSelectedExchanger] = useState<'betfair' | 'betdaq' | 'smarkets'>('betfair')
+  
+  // Filter states
+  const [selectedSports, setSelectedSports] = useState<string[]>(['football'])
+  const [selectedMarkets, setSelectedMarkets] = useState<string[]>(['over-under', 'match-odds', 'half-time'])
+  const [selectedSelections, setSelectedSelections] = useState<string[]>(['over', 'other'])
+  const [selectedProviders, setSelectedProviders] = useState<string[]>(['golbet724', 'golbet724_pre', 'papa', 'onwin'])
+  const [arbMinPercentage, setArbMinPercentage] = useState(-1)
+  const [arbMaxPercentage, setArbMaxPercentage] = useState(50)
+  const [oddsMin, setOddsMin] = useState(1.00)
+  const [oddsMax, setOddsMax] = useState(20.00)
 
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const socketRef = useRef<Socket | null>(null)
-  const teamNameRefs = useRef<Map<string, HTMLElement>>(new Map())
+
+  // Sample data for testing - remove this when real data is working
+  const sampleOpportunities: Opportunity[] = [
+    {
+      id: '1',
+      provider: 'golbet724',
+      sport: 'football',
+      market_name: 'Manchester United vs Liverpool',
+      runner: 'Over 2.5 Goals',
+      arb_percentage: 45.2,
+      lastSeen: Date.now() - 300000, // 5 minutes ago
+      betfair_url: 'https://betfair.com',
+      betfair_market_id: '12345',
+      event_id_betfair: '67890',
+      event_id_provider: '11111'
+    },
+    {
+      id: '2',
+      provider: 'papa',
+      sport: 'football',
+      market_name: 'Arsenal vs Chelsea',
+      runner: 'Arsenal',
+      arb_percentage: 38.7,
+      lastSeen: Date.now() - 600000, // 10 minutes ago
+      betfair_url: 'https://betfair.com',
+      betfair_market_id: '12346',
+      event_id_betfair: '67891',
+      event_id_provider: '11112'
+    },
+    {
+      id: '3',
+      provider: 'onwin',
+      sport: 'basketball',
+      market_name: 'Lakers vs Warriors',
+      runner: 'Over 220.5 Points',
+      arb_percentage: 42.1,
+      lastSeen: Date.now() - 900000, // 15 minutes ago
+      betfair_url: 'https://betfair.com',
+      betfair_market_id: '12347',
+      event_id_betfair: '67892',
+      event_id_provider: '11113'
+    },
+    {
+      id: '4',
+      provider: 'golbet724_pre',
+      sport: 'tennis',
+      market_name: 'Djokovic vs Nadal',
+      runner: 'Djokovic',
+      arb_percentage: 35.8,
+      lastSeen: Date.now() - 1200000, // 20 minutes ago
+      betfair_url: 'https://betfair.com',
+      betfair_market_id: '12348',
+      event_id_betfair: '67893',
+      event_id_provider: '11114'
+    }
+  ]
+
+  // Filter options
+  const filterOptions = {
+    sports: [
+      { value: 'football', label: 'Football' },
+      { value: 'basketball', label: 'Basketball' },
+      { value: 'tennis', label: 'Tennis' },
+      { value: 'other', label: 'Other' }
+    ],
+    markets: [
+      { value: 'over-under', label: 'Over/Under' },
+      { value: 'match-odds', label: 'Match Odds' },
+      { value: 'half-time', label: 'Half Time' },
+      { value: 'other', label: 'Other' },
+      { value: 'asian-handicap', label: 'Asian Handicap' },
+      { value: 'goal-lines', label: 'Goal Lines' },
+      { value: 'first-half-goals', label: 'First Half Goals' }
+    ],
+    selections: [
+      { value: 'over', label: 'Over' },
+      { value: 'other', label: 'Other' },
+      { value: 'under', label: 'Under' }
+    ],
+    providers: [
+      { value: 'golbet724', label: 'Golbet724' },
+      { value: 'golbet724_pre', label: 'Golbet724_pre' },
+      { value: 'papa', label: 'Papa' },
+      { value: 'onwin', label: 'Onwin' }
+    ]
+  }
+
+  // Categorize market and selection functions
+  const categorizeMarket = (name?: string) => {
+    if (!name) return 'other'
+    const n = name.toLowerCase()
+    if (n.includes('handicap')) return 'asian-handicap'
+    if (n.includes('total') || n.includes('over') || n.includes('under')) return 'over-under'
+    if (n.includes('match') || n.includes('1x2')) return 'match-odds'
+    if (n.includes('half') || n.includes('ht')) return 'half-time'
+    if (n.includes('goal') || n.includes('gl')) return 'goal-lines'
+    if (n.includes('first') || n.includes('1st')) return 'first-half-goals'
+    return 'other'
+  }
+
+  const categorizeSelection = (runner?: string) => {
+    if (!runner) return 'other'
+    const r = runner.toLowerCase()
+    if (r.includes('over')) return 'over'
+    if (r.includes('under')) return 'under'
+    return 'other'
+  }
 
   useEffect(() => {
+    // Add sample data for testing - remove this when real data is working
+    setOpps(sampleOpportunities)
+    
     const token = localStorage.getItem('authToken')
-    if(!token){ 
+    if (!token) {
       toast.error('No token, redirecting to login.')
       navigate('/login')
-      return 
+      return
     }
-    console.log('Attempting to connect with token:', token.substring(0,10)+'…')
+
+    console.log('Attempting to connect with token:', token.substring(0, 10) + '…')
+    
+    // Validate token format
     if (token.split('.').length !== 3) {
       toast.error('Invalid token format, please login again.')
       localStorage.removeItem('authToken')
       navigate('/login')
       return
     }
-    let userId = 'unknown'
-    try {
-      const payload = JSON.parse(atob(token.split('.')[1]))
-      console.log(payload)
-      userId = payload.sub || payload.userId || payload.email || 'unknown'
-    } catch (e) { console.warn('Could not extract user ID:', e) }
 
+    // Create socket connection
     const socket = io('https://ws.arbitragex.pro', {
       path: '/socket.io',
       transports: ['websocket'],
@@ -76,204 +175,567 @@ export default function Dashboard() {
       timeout: 10000,
       auth: { 'X-Token': token },
     })
+
     socketRef.current = socket
-    console.log('socket', socket)
+
+    // Connection timeout
     const connectionTimeout = setTimeout(() => {
       if (!isConnected) {
         console.error('Connection timeout after 15s')
+        toast.error('Connection timeout. Please check your internet connection.')
       }
     }, 15000)
 
+    // Socket event handlers
     socket.on('connect', () => {
       clearTimeout(connectionTimeout)
       setIsConnected(true)
       console.log('Connected to WebSocket.')
-      // Optionally subscribe after connect if backend expects it:
-      // DEFAULT_MARKETS.forEach(m => socket.emit('subscribe', { marketCode: m.code, marketId: m.id }))
+      toast.success('Connected to server successfully!')
     })
+
     socket.on('authentication:failed', (data: any) => {
       console.error('Authentication failed:', data)
       toast.error('Authentication failed. Please login again.')
       localStorage.removeItem('authToken')
       navigate('/login')
     })
+
     socket.on('connect_error', (err: any) => {
-      console.error('connect_error', err)
+      console.error('Connection error:', err)
       setIsConnected(false)
+      toast.error('Connection failed. Retrying...')
     })
-    socket.on('disconnect', (reason: any) => {
-      console.log('disconnected:', reason)
+
+    socket.on('disconnect', () => {
+      console.log('Disconnected from WebSocket.')
       setIsConnected(false)
+      toast.warning('Disconnected from server. Reconnecting...')
     })
 
     socket.on('user:markets', (data: any) => {
-      const fm = (data?.markets || []).map((m: string) => ({ label: m.charAt(0).toUpperCase() + m.slice(1), value: m.toLowerCase() }))
-      setAvailableProviders(fm)
-      setSelectedProviders(prev => prev.length ? prev.filter(p => fm.some(fp => fp.value === p)) : fm.map(p => p.value))
-      setFiltersLoaded(true)
+      console.log('Received user markets:', data)
+      if (data.providers) {
+        // Update available providers if needed
+        console.log('Available providers:', data.providers)
+      }
     })
 
-    socket.on('new:arb', (events: any) => {
-      const arr = Array.isArray(events) ? events : [events]
-      setOpps(prev => {
-        const now = Date.now()
-        const updated = [...prev]
-        const newOnes: Opportunity[] = []
-        for (const event of arr) {
-          const safe: Opportunity = {
-            id: `${event.event_id_provider || 'unknown'}-${(event.provider || 'unknown').toLowerCase()}-${event.market_name || 'unknown'}-${event.runner || 'unknown'}`,
-            provider: (event.provider || 'unknown').toLowerCase(),
-            sport: (event.sport || 'unknown').toLowerCase(),
-            market_name: event.market_name || 'unknown',
-            runner: event.runner || 'unknown',
-            arb_percentage: Number(event.arb_percentage ?? 0),
-            lastSeen: now,
-            marketCategory: categorizeMarket(event.market_name),
-            selectionCategory: categorizeSelection(event.runner),
-            betfair_url: event.betfair_url,
-            betfair_market_id: event.betfair_market_id,
-            event_id_betfair: event.event_id_betfair,
-            event_id_provider: event.event_id_provider
-          }
-          const idx = updated.findIndex(o => o.id === safe.id)
-          if (idx >= 0) updated[idx] = safe; else { updated.push(safe); newOnes.push(safe) }
+    socket.on('new:arb', (data: any) => {
+      console.log('New arbitrage opportunity:', data)
+      
+      // Handle different data formats
+      let newOpp: Opportunity
+      if (data.opportunity) {
+        newOpp = data.opportunity
+      } else if (data.event_id_provider) {
+        // Handle legacy format
+        newOpp = {
+          id: `${data.event_id_provider}-${data.provider}-${data.market_name}-${data.runner}`,
+          provider: data.provider?.toLowerCase() || 'unknown',
+          sport: data.sport?.toLowerCase() || 'unknown',
+          market_name: data.market_name || 'unknown',
+          runner: data.runner || 'unknown',
+          arb_percentage: Number(data.arb_percentage ?? 0),
+          lastSeen: Date.now(),
+          betfair_url: data.betfair_url,
+          betfair_market_id: data.betfair_market_id,
+          event_id_betfair: data.event_id_betfair,
+          event_id_provider: data.event_id_provider
         }
-        if (newOnes.length && soundEnabled) { playSound() }
-        return updated
+      } else {
+        console.warn('Unknown data format:', data)
+        return
+      }
+
+      setOpps(prev => {
+        const existing = prev.find(o => o.id === newOpp.id)
+        if (existing) {
+          return prev.map(o => o.id === newOpp.id ? { ...o, ...newOpp, lastSeen: Date.now() } : o)
+        } else {
+          if (soundEnabled) {
+            playNotificationSound()
+          }
+          return [newOpp, ...prev].slice(0, 1000) // Keep last 1000 opportunities
+        }
       })
     })
 
+    // Cleanup on unmount
     return () => {
       socket.disconnect()
-      socketRef.current = null
     }
-  }, [])
+  }, [navigate, soundEnabled])
 
-  // expiry + cleanup timers
-  useEffect(() => {
-    const expiry = setInterval(() => {
-      const now = Date.now()
-      setOpps(prev => prev.map(opp => {
-        const t = now - opp.lastSeen
-        if (t > 8000 && t < 10000 && !opp.isExpiring) return { ...opp, isExpiring: true }
-        return opp
-      }))
-    }, 200)
-    const cleanup = setInterval(() => {
-      const now = Date.now()
-      setOpps(prev => prev.filter(opp => now - opp.lastSeen < 10000))
-    }, 1000)
-    return () => { clearInterval(expiry); clearInterval(cleanup) }
-  }, [])
-
+  // Filter opportunities
   const filtered = useMemo(() => {
-    return opps
-      .filter(o => !selectedProviders.length || selectedProviders.includes(o.provider))
-      .filter(o => !selectedMarkets.length || selectedMarkets.includes(categorizeMarket(o.market_name)))
-      .filter(o => !selectedSelections.length || selectedSelections.includes(categorizeSelection(o.runner)))
-      .filter(o => !selectedSports.length || selectedSports.includes(o.sport))
-      .sort((a, b) => b.arb_percentage - a.arb_percentage)
-  }, [opps, selectedProviders, selectedMarkets, selectedSelections, selectedSports])
+    console.log('Filtering opportunities:', {
+      total: opps.length,
+      selectedSports,
+      selectedProviders,
+      selectedMarkets,
+      selectedSelections,
+      arbMinPercentage,
+      arbMaxPercentage
+    })
+    
+    const filtered = opps.filter(o => {
+      // Filter by arbitrage percentage range
+      if (o.arb_percentage < arbMinPercentage || o.arb_percentage > arbMaxPercentage) return false
+      
+      // Filter by sports
+      if (selectedSports.length > 0 && !selectedSports.includes(o.sport)) return false
+      
+      // Filter by providers
+      if (selectedProviders.length > 0 && !selectedProviders.includes(o.provider)) return false
+      
+      // Filter by markets
+      if (selectedMarkets.length > 0 && !selectedMarkets.includes(categorizeMarket(o.market_name))) return false
+      
+      // Filter by selections
+      if (selectedSelections.length > 0 && !selectedSelections.includes(categorizeSelection(o.runner))) return false
+      
+      return true
+    }).sort((a, b) => b.arb_percentage - a.arb_percentage)
+    
+    console.log('Filtered results:', filtered.length)
+    return filtered
+  }, [opps, selectedSports, selectedProviders, selectedMarkets, selectedSelections, arbMinPercentage, arbMaxPercentage])
 
-  function playSound() {
+  // Play notification sound
+  const playNotificationSound = () => {
     if (!audioRef.current) {
-      const a = new Audio()
-      a.src = 'data:audio/mp3;base64,//uQZAAAAAAAAAAAAAAAAAAAA...' // tiny silent placeholder
+      const a = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSuBzvLZiTYIG2m98OScTgwOUarm7blmGgU7k9n1unEiBC13yO/eizEIHWq+8+OWT')
       audioRef.current = a
     }
-    audioRef.current.volume = soundVolume
+    audioRef.current.volume = 0.7
     audioRef.current.play().catch(() => { })
   }
 
-  const getExchangerLabel = () => (selectedExchanger === 'betfair' ? 'Betfair' : selectedExchanger === 'betdaq' ? 'Betdaq' : 'Smarkets')
-  const getExchangerUrl = (o: Opportunity) => generateExchangerUrl(selectedExchanger, o.sport, o.betfair_market_id, o.event_id_betfair)
+  // Filter handlers
+  const handleSelectAll = (category: string) => {
+    switch (category) {
+      case 'sports':
+        setSelectedSports(filterOptions.sports.map(s => s.value))
+        break
+      case 'markets':
+        setSelectedMarkets(filterOptions.markets.map(m => m.value))
+        break
+      case 'selections':
+        setSelectedSelections(filterOptions.selections.map(s => s.value))
+        break
+      case 'providers':
+        setSelectedProviders(filterOptions.providers.map(p => p.value))
+        break
+    }
+  }
+
+  const handleClear = (category: string) => {
+    switch (category) {
+      case 'sports':
+        setSelectedSports([])
+        break
+      case 'markets':
+        setSelectedMarkets([])
+        break
+      case 'selections':
+        setSelectedSelections([])
+        break
+      case 'providers':
+        setSelectedProviders([])
+        break
+    }
+  }
+
+  const handleCheckboxChange = (category: string, value: string, checked: boolean) => {
+    switch (category) {
+      case 'sports':
+        setSelectedSports(prev => 
+          checked ? [...prev, value] : prev.filter(v => v !== value)
+        )
+        break
+      case 'markets':
+        setSelectedMarkets(prev => 
+          checked ? [...prev, value] : prev.filter(v => v !== value)
+        )
+        break
+      case 'selections':
+        setSelectedSelections(prev => 
+          checked ? [...prev, value] : prev.filter(v => v !== value)
+        )
+        break
+      case 'providers':
+        setSelectedProviders(prev => 
+          checked ? [...prev, value] : prev.filter(v => v !== value)
+        )
+        break
+    }
+  }
+
+  // Get sport icon
+  const getSportIcon = (sport: string) => {
+    switch (sport.toLowerCase()) {
+      case 'football': return '⚽'
+      case 'basketball': return '🏀'
+      case 'tennis': return '🎾'
+      default: return '⭐'
+    }
+  }
+
+  // Generate exchanger URL
+  const generateExchangerUrl = (exchanger: string, sport: string, betfairMarketId?: string, eventIdBetfair?: string) => {
+    if (exchanger === 'betfair' && betfairMarketId) {
+      return `https://www.betfair.com/exchange/plus/${sport}/market/${betfairMarketId}`
+    }
+    if (eventIdBetfair) {
+      return `https://www.betfair.com/exchange/plus/${sport}/event/${eventIdBetfair}`
+    }
+    return `https://www.betfair.com/`
+  }
+
+  // Debug info
+  console.log('Dashboard render:', {
+    isConnected,
+    oppsCount: opps.length,
+    filteredCount: filtered.length,
+    showFilters
+  })
 
   return (
-    <div>
-      <header>
-        <strong>Arb Dashboard</strong>
-        <span className={'badge ' + (isConnected ? 'ok' : 'fail')}>{isConnected ? 'connected' : 'disconnected'}</span>
-        <span className="muted">providers: {availableProviders.length}</span>
-        <button className="btn" onClick={() => { localStorage.removeItem('authToken'); navigate('/login') }}>Logout</button>
+    <div className="dashboard-container">
+      {/* Header Section */}
+      <header className="dashboard-header">
+        <div className="header-left">
+          <h1 className="dashboard-title">Arbitrage Dashboard</h1>
+          <div className="status-info">
+            <span className={`status-badge ${isConnected ? 'connected' : 'disconnected'}`}>
+              {isConnected ? 'Connected' : 'Disconnected'}
+            </span>
+            <span className="opportunity-count">{filtered.length} of {opps.length} opportunities</span>
+          </div>
+        </div>
+        
+        <div className="header-right">
+          <button 
+            className={`icon-button ${soundEnabled ? 'active' : ''}`}
+            onClick={() => setSoundEnabled(!soundEnabled)}
+            title={soundEnabled ? 'Sound On' : 'Sound Off'}
+          >
+            🔊
+          </button>
+          <button 
+            className={`icon-button ${showFilters ? 'active' : ''}`}
+            onClick={() => setShowFilters(!showFilters)}
+            title="Filters"
+          >
+            🔍
+          </button>
+          <button 
+            className="icon-button"
+            onClick={() => document.documentElement.requestFullscreen()}
+            title="Fullscreen"
+          >
+            ⛶
+          </button>
+          <button 
+            className="logout-button"
+            onClick={() => { localStorage.removeItem('authToken'); navigate('/login') }}
+          >
+            Logout
+          </button>
+        </div>
       </header>
 
-      <div className="grid">
-        <main className="card">
-          <div className="row" style={{ marginBottom: 12 }}>
-            <strong>Opportunities</strong>
-            <span className="muted">showing {filtered.length} / {opps.length}</span>
-            <span className="tag">{getExchangerLabel()}</span>
-          </div>
-          <div className="list">
-            {filtered.map(o => (
-              <div className="opp" key={o.id}>
-                <div className="row">
-                  <span className="tag">{o.provider}</span>
-                  <span className="tag">{o.sport}</span>
-                  <span className="tag">{categorizeMarket(o.market_name)}</span>
-                  <span className="tag">{categorizeSelection(o.runner)}</span>
-                  <span className="tag">arb {o.arb_percentage.toFixed(2)}%</span>
+      {/* Main Content */}
+      <div className="dashboard-content">
+        <main className="opportunities-list">
+          {filtered.length > 0 ? (
+            filtered.map((opp) => (
+              <div className="opportunity-item" key={opp.id}>
+                <div className="opportunity-left">
+                  <div className="sport-icon">{getSportIcon(opp.sport)}</div>
+                  <div className="match-details">
+                    <div className="team-names">{opp.market_name}</div>
+                    <div className="league-name">{opp.sport}</div>
+                    <div className="market-type">{opp.market_name}</div>
+                    <div className="selection-highlight">{opp.runner}</div>
+                  </div>
+                  <div className="time-info">
+                    <span className="timestamp">
+                      {new Date(opp.lastSeen).toLocaleTimeString('en-GB', { 
+                        hour: '2-digit', 
+                        minute: '2-digit' 
+                      })}
+                    </span>
+                    <div className="action-icons">
+                      <a 
+                        href={generateExchangerUrl(selectedExchanger, opp.sport, opp.betfair_market_id, opp.event_id_betfair)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="calendar-icon"
+                        title="View on Exchange"
+                      >
+                        📄
+                      </a>
+                      <span className="delete-icon" title="Delete">🗑️</span>
+                    </div>
+                  </div>
                 </div>
-                <div className="marquee-container">
-                  <div>{o.market_name} — {o.runner}</div>
-                </div>
-                <div className="row">
-                  <a href={getExchangerUrl(o)} target="_blank">Open in {getExchangerLabel()}</a>
+                
+                <div className="opportunity-right">
+                  <div className="arbitrage-percentage">{opp.arb_percentage.toFixed(1)}%</div>
+                  <div className="odds-container">
+                    <div className="odds-pair">
+                      <span className="odds-value green">5.10</span>
+                      <span className="provider-name">{opp.provider}</span>
+                      <span className="liquidity">(54)</span>
+                    </div>
+                    <div className="odds-pair">
+                      <span className="odds-value red">2.54</span>
+                      <span className="provider-name">Betfair</span>
+                      <span className="liquidity">(188)</span>
+                    </div>
+                  </div>
                 </div>
               </div>
-            ))}
-          </div>
+            ))
+          ) : (
+            <div className="no-opportunities">
+              <p>No arbitrage opportunities found</p>
+              <p className="subtitle">
+                {opps.length === 0 
+                  ? 'Waiting for data from server...' 
+                  : 'Check your filters or wait for new opportunities'
+                }
+              </p>
+              {opps.length === 0 && (
+                <div className="connection-status">
+                  <p>Connection Status: {isConnected ? 'Connected' : 'Disconnected'}</p>
+                  <p>Total Opportunities: {opps.length}</p>
+                  <p>Debug: Check browser console for connection details</p>
+                </div>
+              )}
+            </div>
+          )}
         </main>
 
-        <aside className="card">
-          <h3>Filters</h3>
-          <div className="list">
-            <div>
-              <div className="muted">Providers</div>
-              <div className="row">
-                {availableProviders.map(p => (
-                  <label key={p.value}><input type="checkbox" checked={selectedProviders.includes(p.value)} onChange={e => {
-                    setSelectedProviders(prev => e.target.checked ? [...prev, p.value] : prev.filter(v => v !== p.value))
-                  }} /> {p.label}</label>
+        {/* Filters Sidebar - Modal */}
+        {showFilters && (
+          <aside className="filters-sidebar">
+            <div className="filters-header">
+              <h3 className="filters-title">Filters</h3>
+              <p className="filters-subtitle">Filter arbitrage opportunities</p>
+              <button 
+                className="close-filters-btn"
+                onClick={() => setShowFilters(false)}
+              >
+                ✕
+              </button>
+            </div>
+            
+            {/* Sports Section */}
+            <div className="filter-section">
+              <div className="filter-section-header">
+                <h4>Sports</h4>
+                <div className="filter-actions">
+                  <button onClick={() => handleSelectAll('sports')}>Select All</button>
+                  <button onClick={() => handleClear('sports')}>Clear</button>
+                </div>
+              </div>
+              <div className="filter-options">
+                {filterOptions.sports.map(sport => (
+                  <label key={sport.value} className="filter-option">
+                    <input 
+                      type="checkbox" 
+                      checked={selectedSports.includes(sport.value)}
+                      onChange={(e) => handleCheckboxChange('sports', sport.value, e.target.checked)} 
+                    /> 
+                    <span>{sport.label}</span>
+                  </label>
                 ))}
               </div>
             </div>
-            <div>
-              <div className="muted">Markets</div>
-              <div className="row">
-                {markets.map(m => (
-                  <label key={m.value}><input type="checkbox" checked={selectedMarkets.includes(m.value)} onChange={e => {
-                    setSelectedMarkets(prev => e.target.checked ? [...prev, m.value] : prev.filter(v => v !== m.value))
-                  }} /> {m.label}</label>
+
+            {/* Markets Section */}
+            <div className="filter-section">
+              <div className="filter-section-header">
+                <h4>Markets</h4>
+                <div className="filter-actions">
+                  <button onClick={() => handleSelectAll('markets')}>Select All</button>
+                  <button onClick={() => handleClear('markets')}>Clear</button>
+                </div>
+              </div>
+              <div className="filter-options">
+                {filterOptions.markets.map(market => (
+                  <label key={market.value} className="filter-option">
+                    <input 
+                      type="checkbox" 
+                      checked={selectedMarkets.includes(market.value)}
+                      onChange={(e) => handleCheckboxChange('markets', market.value, e.target.checked)} 
+                    /> 
+                    <span>{market.label}</span>
+                  </label>
                 ))}
               </div>
             </div>
-            <div>
-              <div className="muted">Selections</div>
-              <div className="row">
-                {selections.map(s => (
-                  <label key={s.value}><input type="checkbox" checked={selectedSelections.includes(s.value)} onChange={e => {
-                    setSelectedSelections(prev => e.target.checked ? [...prev, s.value] : prev.filter(v => v !== s.value))
-                  }} /> {s.label}</label>
+
+            {/* Selections Section */}
+            <div className="filter-section">
+              <div className="filter-section-header">
+                <h4>Selections</h4>
+                <div className="filter-actions">
+                  <button onClick={() => handleSelectAll('selections')}>Select All</button>
+                  <button onClick={() => handleClear('selections')}>Clear</button>
+                </div>
+              </div>
+              <div className="filter-options">
+                {filterOptions.selections.map(selection => (
+                  <label key={selection.value} className="filter-option">
+                    <input 
+                      type="checkbox" 
+                      checked={selectedSelections.includes(selection.value)}
+                      onChange={(e) => handleCheckboxChange('selections', selection.value, e.target.checked)} 
+                    /> 
+                    <span>{selection.label}</span>
+                  </label>
                 ))}
               </div>
             </div>
-            <div>
-              <div className="muted">Sports</div>
-              <div className="row">
-                {sports.map(s => (
-                  <label key={s.value}><input type="checkbox" checked={selectedSports.includes(s.value)} onChange={e => {
-                    setSelectedSports(prev => e.target.checked ? [...prev, s.value] : prev.filter(v => v !== s.value))
-                  }} /> {s.label}</label>
+
+            {/* Providers Section */}
+            <div className="filter-section">
+              <div className="filter-section-header">
+                <h4>Providers</h4>
+                <div className="filter-actions">
+                  <button onClick={() => handleSelectAll('providers')}>Select All</button>
+                  <button onClick={() => handleClear('providers')}>Clear</button>
+                </div>
+              </div>
+              <div className="filter-options">
+                {filterOptions.providers.map(provider => (
+                  <label key={provider.value} className="filter-option">
+                    <input 
+                      type="checkbox" 
+                      checked={selectedProviders.includes(provider.value)}
+                      onChange={(e) => handleCheckboxChange('providers', provider.value, e.target.checked)} 
+                    /> 
+                    <span>{provider.label}</span>
+                  </label>
                 ))}
               </div>
             </div>
-            <div className="toggle">
-              <label><input type="checkbox" checked={debugMode} onChange={() => setDebugMode(!debugMode)} /> Debug</label>
-              <label><input type="checkbox" checked={soundEnabled} onChange={() => setSoundEnabled(!soundEnabled)} /> Sound</label>
+
+            {/* Exchange Section */}
+            <div className="filter-section">
+              <h4>Exchange</h4>
+              <select 
+                className="exchange-select"
+                value={selectedExchanger}
+                onChange={(e) => setSelectedExchanger(e.target.value as 'betfair' | 'betdaq' | 'smarkets')}
+              >
+                <option value="betfair">Betfair</option>
+                <option value="betdaq">Betdaq</option>
+                <option value="smarkets">Smarkets</option>
+              </select>
             </div>
-          </div>
-        </aside>
+
+            {/* Arb Percentage Range Section */}
+            <div className="filter-section">
+              <h4>Arb Percentage Range</h4>
+              <div className="range-slider-container">
+                <div className="range-slider">
+                  <input 
+                    type="range" 
+                    min="-1" 
+                    max="50" 
+                    value={arbMinPercentage}
+                    onChange={(e) => setArbMinPercentage(Number(e.target.value))}
+                    className="range-input min-range"
+                  />
+                  <input 
+                    type="range" 
+                    min="-1" 
+                    max="50" 
+                    value={arbMaxPercentage}
+                    onChange={(e) => setArbMaxPercentage(Number(e.target.value))}
+                    className="range-input max-range"
+                  />
+                </div>
+                <div className="range-inputs">
+                  <div className="range-input-group">
+                    <label>Min:</label>
+                    <input 
+                      type="number" 
+                      value={arbMinPercentage}
+                      onChange={(e) => setArbMinPercentage(Number(e.target.value))}
+                      className="range-number-input"
+                    />
+                    <span>%</span>
+                  </div>
+                  <div className="range-input-group">
+                    <label>Max:</label>
+                    <input 
+                      type="number" 
+                      value={arbMaxPercentage}
+                      onChange={(e) => setArbMaxPercentage(Number(e.target.value))}
+                      className="range-number-input"
+                    />
+                    <span>%</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Odds Range Section */}
+            <div className="filter-section">
+              <h4>Odds Range</h4>
+              <div className="range-slider-container">
+                <div className="range-slider">
+                  <input 
+                    type="range" 
+                    min="1" 
+                    max="20" 
+                    step="0.01"
+                    value={oddsMin}
+                    onChange={(e) => setOddsMin(Number(e.target.value))}
+                    className="range-input min-range"
+                  />
+                  <input 
+                    type="range" 
+                    min="1" 
+                    max="20" 
+                    step="0.01"
+                    value={oddsMax}
+                    onChange={(e) => setOddsMax(Number(e.target.value))}
+                    className="range-input max-range"
+                  />
+                </div>
+                <div className="range-inputs">
+                  <div className="range-input-group">
+                    <label>Min:</label>
+                    <input 
+                      type="number" 
+                      step="0.01"
+                      value={oddsMin}
+                      onChange={(e) => setOddsMin(Number(e.target.value))}
+                      className="range-number-input"
+                    />
+                  </div>
+                  <div className="range-input-group">
+                    <label>Max:</label>
+                    <input 
+                      type="number" 
+                      step="0.01"
+                      value={oddsMax}
+                      onChange={(e) => setOddsMax(Number(e.target.value))}
+                      className="range-number-input"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </aside>
+        )}
       </div>
     </div>
   )
