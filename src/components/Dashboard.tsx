@@ -15,6 +15,16 @@ type Opportunity = {
   betfair_market_id?: string
   event_id_betfair?: string
   event_id_provider?: string
+  // New fields from server
+  teams?: string
+  tournament?: string
+  timestamp?: string
+  back_odds?: number
+  lay_odds?: number
+  betfair_lay_size?: number
+  provider_market_id?: string
+  provider_url?: string
+  handicap_name?: string
 }
 
 export default function Dashboard() {
@@ -24,7 +34,7 @@ export default function Dashboard() {
   const [soundEnabled, setSoundEnabled] = useState(true)
   const [showFilters, setShowFilters] = useState(false)
   const [selectedExchanger, setSelectedExchanger] = useState<'betfair' | 'betdaq' | 'smarkets'>('betfair')
-  
+
   // Filter states
   const [selectedSports, setSelectedSports] = useState<string[]>(['soccer'])
   const [selectedMarkets, setSelectedMarkets] = useState<string[]>(['over-under', 'match-odds', 'half-time'])
@@ -90,7 +100,30 @@ export default function Dashboard() {
   }
 
   useEffect(() => {
-    
+    // Add sample data for testing - remove this when real data is working
+    const sampleData: Opportunity[] = [
+      {
+        id: '1',
+        provider: 'golbet724',
+        sport: 'soccer',
+        market_name: 'Match Odds',
+        runner: 'The Draw',
+        arb_percentage: 53.39,
+        lastSeen: Date.now() - 300000,
+        teams: 'St Mirren vs Hearts',
+        tournament: 'Scottish League Cup',
+        timestamp: '2025-08-16 17:54:52',
+        back_odds: 3.85,
+        lay_odds: 1.17,
+        betfair_lay_size: 5.05,
+        betfair_market_id: '1.246530510',
+        event_id_betfair: '34608673',
+        event_id_provider: '50922367',
+        provider_url: 'https://www.golbet724.com/canli/50922367'
+      }
+    ]
+    setOpps(sampleData)
+
     const token = localStorage.getItem('authToken')
     if (!token) {
       toast.error('No token, redirecting to login.')
@@ -99,7 +132,7 @@ export default function Dashboard() {
     }
 
     console.log('Attempting to connect with token:', token.substring(0, 10) + '…')
-    
+
     // Validate token format
     if (token.split('.').length !== 3) {
       toast.error('Invalid token format, please login again.')
@@ -155,17 +188,9 @@ export default function Dashboard() {
       toast.warning('Disconnected from server. Reconnecting...')
     })
 
-    socket.on('user:markets', (data: any) => {
-      console.log('Received user markets:', data)
-      if (data.providers) {
-        // Update available providers if needed
-        console.log('Available providers:', data.providers)
-      }
-    })
-
     socket.on('new:arb', (data: any) => {
       console.log('New arbitrage opportunity:', data)
-      
+
       // Handle different data formats
       let newOpp: Opportunity
       if (data.opportunity) {
@@ -183,7 +208,17 @@ export default function Dashboard() {
           betfair_url: data.betfair_url,
           betfair_market_id: data.betfair_market_id,
           event_id_betfair: data.event_id_betfair,
-          event_id_provider: data.event_id_provider
+          event_id_provider: data.event_id_provider,
+          // Map new fields
+          teams: data.teams,
+          tournament: data.tournament,
+          timestamp: data.timestamp,
+          back_odds: Number(data.back_odds ?? 0),
+          lay_odds: Number(data.lay_odds ?? 0),
+          betfair_lay_size: Number(data.betfair_lay_size ?? 0),
+          provider_market_id: data.provider_market_id,
+          provider_url: data.provider_url,
+          handicap_name: data.handicap_name
         }
       } else {
         console.warn('Unknown data format:', data)
@@ -220,26 +255,26 @@ export default function Dashboard() {
       arbMinPercentage,
       arbMaxPercentage
     })
-    
+
     const filtered = opps.filter(o => {
       // Filter by arbitrage percentage range
       if (o.arb_percentage < arbMinPercentage || o.arb_percentage > arbMaxPercentage) return false
-      
+
       // Filter by sports
       if (selectedSports.length > 0 && !selectedSports.includes(o.sport)) return false
-      
+
       // Filter by providers
       if (selectedProviders.length > 0 && !selectedProviders.includes(o.provider)) return false
-      
+
       // Filter by markets
       if (selectedMarkets.length > 0 && !selectedMarkets.includes(categorizeMarket(o.market_name))) return false
-      
+
       // Filter by selections
       if (selectedSelections.length > 0 && !selectedSelections.includes(categorizeSelection(o.runner))) return false
-      
+
       return true
     }).sort((a, b) => b.arb_percentage - a.arb_percentage)
-    
+
     console.log('Filtered results:', filtered.length)
     return filtered
   }, [opps, selectedSports, selectedProviders, selectedMarkets, selectedSelections, arbMinPercentage, arbMaxPercentage])
@@ -292,22 +327,22 @@ export default function Dashboard() {
   const handleCheckboxChange = (category: string, value: string, checked: boolean) => {
     switch (category) {
       case 'sports':
-        setSelectedSports(prev => 
+        setSelectedSports(prev =>
           checked ? [...prev, value] : prev.filter(v => v !== value)
         )
         break
       case 'markets':
-        setSelectedMarkets(prev => 
+        setSelectedMarkets(prev =>
           checked ? [...prev, value] : prev.filter(v => v !== value)
         )
         break
       case 'selections':
-        setSelectedSelections(prev => 
+        setSelectedSelections(prev =>
           checked ? [...prev, value] : prev.filter(v => v !== value)
         )
         break
       case 'providers':
-        setSelectedProviders(prev => 
+        setSelectedProviders(prev =>
           checked ? [...prev, value] : prev.filter(v => v !== value)
         )
         break
@@ -356,30 +391,30 @@ export default function Dashboard() {
             <span className="opportunity-count">{filtered.length} of {opps.length} opportunities</span>
           </div>
         </div>
-        
+
         <div className="header-right">
-          <button 
+          <button
             className={`icon-button ${soundEnabled ? 'active' : ''}`}
             onClick={() => setSoundEnabled(!soundEnabled)}
             title={soundEnabled ? 'Sound On' : 'Sound Off'}
           >
             🔊
           </button>
-          <button 
+          <button
             className={`icon-button ${showFilters ? 'active' : ''}`}
             onClick={() => setShowFilters(!showFilters)}
             title="Filters"
           >
             🔍
           </button>
-          <button 
+          <button
             className="icon-button"
             onClick={() => document.documentElement.requestFullscreen()}
             title="Fullscreen"
           >
             ⛶
           </button>
-          <button 
+          <button
             className="logout-button"
             onClick={() => { localStorage.removeItem('authToken'); navigate('/login') }}
           >
@@ -395,24 +430,43 @@ export default function Dashboard() {
             filtered.map((opp) => (
               <div className="opportunity-item" key={opp.id}>
                 <div className="opportunity-left">
-                  <div className="sport-icon">{getSportIcon(opp.sport)}</div>
+                  <div className="sport-icon-container">
+                    <div className="sport-icon">{getSportIcon(opp.sport)}</div>
+                    <div>
+                      <div className="team-names">{opp.teams || opp.market_name}</div>
+                      <div className="tournament-name">{opp.tournament}</div>
+                    </div>
+                  </div>
                   <div className="match-details">
-                    <div className="team-names">{opp.market_name}</div>
                     <div className="market-type">{opp.market_name}</div>
                     <div className="selection-highlight">{opp.runner}</div>
+                    {opp.handicap_name && (
+                      <div className="handicap-info">{opp.handicap_name}</div>
+                    )}
+                    <div className="time-info">
+                      <span className="timestamp">
+                        {opp.timestamp ? new Date(opp.timestamp).toLocaleTimeString('en-GB', {
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        }) : new Date(opp.lastSeen).toLocaleTimeString('en-GB', {
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })}
+                      </span>
+                    </div>
                   </div>
                 </div>
-                
+
                 <div className="opportunity-right">
                   <div className="arbitrage-percentage">{opp.arb_percentage.toFixed(1)}%</div>
                   <div className="odds-container">
                     <div className="odds-pair">
-                      <span className="odds-value green">5.10</span>
+                      <span className="odds-value green">{opp.back_odds?.toFixed(2) || '5.10'}</span>
                       <span className="provider-name">{opp.provider}</span>
-                      <span className="liquidity">(54)</span>
+                      <span className="liquidity">({opp.betfair_lay_size || 54})</span>
                     </div>
                     <div className="odds-pair">
-                      <span className="odds-value red">2.54</span>
+                      <span className="odds-value red">{opp.lay_odds?.toFixed(2) || '2.54'}</span>
                       <span className="provider-name">Betfair</span>
                       <span className="liquidity">(188)</span>
                     </div>
@@ -424,8 +478,8 @@ export default function Dashboard() {
             <div className="no-opportunities">
               <p>No arbitrage opportunities found</p>
               <p className="subtitle">
-                {opps.length === 0 
-                  ? 'Waiting for data from server...' 
+                {opps.length === 0
+                  ? 'Waiting for data from server...'
                   : 'Check your filters or wait for new opportunities'
                 }
               </p>
@@ -446,14 +500,14 @@ export default function Dashboard() {
             <div className="filters-header">
               <h3 className="filters-title">Filters</h3>
               <p className="filters-subtitle">Filter arbitrage opportunities</p>
-              <button 
+              <button
                 className="close-filters-btn"
                 onClick={() => setShowFilters(false)}
               >
                 ✕
               </button>
             </div>
-            
+
             {/* Sports Section */}
             <div className="filter-section">
               <div className="filter-section-header">
@@ -466,11 +520,11 @@ export default function Dashboard() {
               <div className="filter-options">
                 {filterOptions.sports.map(sport => (
                   <label key={sport.value} className="filter-option">
-                    <input 
-                      type="checkbox" 
+                    <input
+                      type="checkbox"
                       checked={selectedSports.includes(sport.value)}
-                      onChange={(e) => handleCheckboxChange('sports', sport.value, e.target.checked)} 
-                    /> 
+                      onChange={(e) => handleCheckboxChange('sports', sport.value, e.target.checked)}
+                    />
                     <span>{sport.label}</span>
                   </label>
                 ))}
@@ -489,11 +543,11 @@ export default function Dashboard() {
               <div className="filter-options">
                 {filterOptions.markets.map(market => (
                   <label key={market.value} className="filter-option">
-                    <input 
-                      type="checkbox" 
+                    <input
+                      type="checkbox"
                       checked={selectedMarkets.includes(market.value)}
-                      onChange={(e) => handleCheckboxChange('markets', market.value, e.target.checked)} 
-                    /> 
+                      onChange={(e) => handleCheckboxChange('markets', market.value, e.target.checked)}
+                    />
                     <span>{market.label}</span>
                   </label>
                 ))}
@@ -512,11 +566,11 @@ export default function Dashboard() {
               <div className="filter-options">
                 {filterOptions.selections.map(selection => (
                   <label key={selection.value} className="filter-option">
-                    <input 
-                      type="checkbox" 
+                    <input
+                      type="checkbox"
                       checked={selectedSelections.includes(selection.value)}
-                      onChange={(e) => handleCheckboxChange('selections', selection.value, e.target.checked)} 
-                    /> 
+                      onChange={(e) => handleCheckboxChange('selections', selection.value, e.target.checked)}
+                    />
                     <span>{selection.label}</span>
                   </label>
                 ))}
@@ -535,11 +589,11 @@ export default function Dashboard() {
               <div className="filter-options">
                 {filterOptions.providers.map(provider => (
                   <label key={provider.value} className="filter-option">
-                    <input 
-                      type="checkbox" 
+                    <input
+                      type="checkbox"
                       checked={selectedProviders.includes(provider.value)}
-                      onChange={(e) => handleCheckboxChange('providers', provider.value, e.target.checked)} 
-                    /> 
+                      onChange={(e) => handleCheckboxChange('providers', provider.value, e.target.checked)}
+                    />
                     <span>{provider.label}</span>
                   </label>
                 ))}
@@ -549,7 +603,7 @@ export default function Dashboard() {
             {/* Exchange Section */}
             <div className="filter-section">
               <h4>Exchange</h4>
-              <select 
+              <select
                 className="exchange-select"
                 value={selectedExchanger}
                 onChange={(e) => setSelectedExchanger(e.target.value as 'betfair' | 'betdaq' | 'smarkets')}
@@ -565,18 +619,18 @@ export default function Dashboard() {
               <h4>Arb Percentage Range</h4>
               <div className="range-slider-container">
                 <div className="range-slider">
-                  <input 
-                    type="range" 
-                    min="-1" 
-                    max="50" 
+                  <input
+                    type="range"
+                    min="-1"
+                    max="50"
                     value={arbMinPercentage}
                     onChange={(e) => setArbMinPercentage(Number(e.target.value))}
                     className="range-input min-range"
                   />
-                  <input 
-                    type="range" 
-                    min="-1" 
-                    max="50" 
+                  <input
+                    type="range"
+                    min="-1"
+                    max="50"
                     value={arbMaxPercentage}
                     onChange={(e) => setArbMaxPercentage(Number(e.target.value))}
                     className="range-input max-range"
@@ -585,8 +639,8 @@ export default function Dashboard() {
                 <div className="range-inputs">
                   <div className="range-input-group">
                     <label>Min:</label>
-                    <input 
-                      type="number" 
+                    <input
+                      type="number"
                       value={arbMinPercentage}
                       onChange={(e) => setArbMinPercentage(Number(e.target.value))}
                       className="range-number-input"
@@ -595,8 +649,8 @@ export default function Dashboard() {
                   </div>
                   <div className="range-input-group">
                     <label>Max:</label>
-                    <input 
-                      type="number" 
+                    <input
+                      type="number"
                       value={arbMaxPercentage}
                       onChange={(e) => setArbMaxPercentage(Number(e.target.value))}
                       className="range-number-input"
@@ -612,19 +666,19 @@ export default function Dashboard() {
               <h4>Odds Range</h4>
               <div className="range-slider-container">
                 <div className="range-slider">
-                  <input 
-                    type="range" 
-                    min="1" 
-                    max="20" 
+                  <input
+                    type="range"
+                    min="1"
+                    max="20"
                     step="0.01"
                     value={oddsMin}
                     onChange={(e) => setOddsMin(Number(e.target.value))}
                     className="range-input min-range"
                   />
-                  <input 
-                    type="range" 
-                    min="1" 
-                    max="20" 
+                  <input
+                    type="range"
+                    min="1"
+                    max="20"
                     step="0.01"
                     value={oddsMax}
                     onChange={(e) => setOddsMax(Number(e.target.value))}
@@ -634,8 +688,8 @@ export default function Dashboard() {
                 <div className="range-inputs">
                   <div className="range-input-group">
                     <label>Min:</label>
-                    <input 
-                      type="number" 
+                    <input
+                      type="number"
                       step="0.01"
                       value={oddsMin}
                       onChange={(e) => setOddsMin(Number(e.target.value))}
@@ -644,8 +698,8 @@ export default function Dashboard() {
                   </div>
                   <div className="range-input-group">
                     <label>Max:</label>
-                    <input 
-                      type="number" 
+                    <input
+                      type="number"
                       step="0.01"
                       value={oddsMax}
                       onChange={(e) => setOddsMax(Number(e.target.value))}
