@@ -106,7 +106,7 @@ export default function Dashboard() {
     } else {
       document.body.style.overflow = 'unset'
     }
-    
+
     return () => {
       document.body.style.overflow = 'unset'
     }
@@ -413,7 +413,7 @@ export default function Dashboard() {
         </div>
 
         <div className="header-right">
-        
+
           <button
             className={`icon-button ${showFilters ? 'active' : ''}`}
             onClick={() => setShowFilters(!showFilters)}
@@ -442,51 +442,53 @@ export default function Dashboard() {
         <main className="opportunities-list">
           {filtered.length > 0 ? (
             filtered.map((opp) => (
-              <div className="opportunity-item" key={opp.id}>
-                <div className="opportunity-left">
-                  <div className="sport-icon-container">
-                    <div className="sport-icon">{getSportIcon(opp.sport)}</div>
-                    <div>
-                      <div className="team-names">{opp.teams || opp.market_name}</div>
-                      <div className="tournament-name">{opp.tournament}</div>
+              <a href={opp.provider_url || generateExchangerUrl(selectedExchanger, opp.sport, opp.betfair_market_id, opp.event_id_betfair)} target="_blank" rel="noopener noreferrer" key={opp.id}>
+                <div className="opportunity-item">
+                  <div className="opportunity-left">
+                    <div className="sport-icon-container">
+                      <div className="sport-icon">{getSportIcon(opp.sport)}</div>
+                      <div>
+                        <div className="team-names">{opp.teams || opp.market_name}</div>
+                        <div className="tournament-name">{opp.tournament}</div>
+                      </div>
+                    </div>
+                    <div className="match-details">
+                      <div className="market-type">{opp.market_name}</div>
+                      <div className="selection-highlight">{opp.runner}</div>
+                      {opp.handicap_name && (
+                        <div className="handicap-info">{opp.handicap_name}</div>
+                      )}
+                      <div className="time-info">
+                        <span className="timestamp">
+                          {opp.timestamp ? new Date(opp.timestamp).toLocaleTimeString('en-GB', {
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          }) : new Date(opp.lastSeen).toLocaleTimeString('en-GB', {
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })}
+                        </span>
+                      </div>
                     </div>
                   </div>
-                  <div className="match-details">
-                    <div className="market-type">{opp.market_name}</div>
-                    <div className="selection-highlight">{opp.runner}</div>
-                    {opp.handicap_name && (
-                      <div className="handicap-info">{opp.handicap_name}</div>
-                    )}
-                    <div className="time-info">
-                      <span className="timestamp">
-                        {opp.timestamp ? new Date(opp.timestamp).toLocaleTimeString('en-GB', {
-                          hour: '2-digit',
-                          minute: '2-digit'
-                        }) : new Date(opp.lastSeen).toLocaleTimeString('en-GB', {
-                          hour: '2-digit',
-                          minute: '2-digit'
-                        })}
-                      </span>
-                    </div>
-                  </div>
-                </div>
 
-                <div className="opportunity-right">
-                  <div className="arbitrage-percentage">{opp.arb_percentage.toFixed(1)}%</div>
-                  <div className="odds-container">
-                    <div className="odds-pair">
-                      <span className="odds-value green">{opp.back_odds?.toFixed(2) || '5.10'}</span>
-                      <span className="provider-name">{opp.provider}</span>
-                      <span className="liquidity">({opp.betfair_lay_size || 54})</span>
-                    </div>
-                    <div className="odds-pair">
-                      <span className="odds-value red">{opp.lay_odds?.toFixed(2) || '2.54'}</span>
-                      <span className="provider-name">Betfair</span>
-                      <span className="liquidity">(188)</span>
+                  <div className="opportunity-right">
+                    <div className="arbitrage-percentage">{opp.arb_percentage.toFixed(1)}%</div>
+                    <div className="odds-container">
+                      <div className="odds-pair">
+                        <span className="odds-value green">{opp.back_odds?.toFixed(2) || '5.10'}</span>
+                        <span className="provider-name">{opp.provider}</span>
+                        <span className="liquidity">({opp.betfair_lay_size || 54})</span>
+                      </div>
+                      <div className="odds-pair">
+                        <span className="odds-value red">{opp.lay_odds?.toFixed(2) || '2.54'}</span>
+                        <span className="provider-name">Betfair</span>
+                        <span className="liquidity">(188)</span>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
+              </a>
             ))
           ) : (
             <div className="no-opportunities">
@@ -510,7 +512,7 @@ export default function Dashboard() {
 
         {/* Filter Modal Overlay */}
         {showFilters && (
-          <div 
+          <div
             className="filter-overlay"
             onClick={() => setShowFilters(false)}
           />
