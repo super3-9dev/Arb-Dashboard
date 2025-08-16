@@ -46,46 +46,53 @@ export default function Login() {
   return (
     <div className="login-container">
       <div className="login-card">
-        <h1>Arb Dashboard</h1>
-        <p className="login-subtitle">Sign in to access your dashboard</p>
+        <div className="brand-section">
+          <h1>Arb Tracker</h1>
+          <p className="login-subtitle">Login to access real-time arbitrage opportunities</p>
+        </div>
         
-        <form onSubmit={handleSubmit} className="login-form">
-          <div className="form-group">
-            <label htmlFor="email">Username/Email</label>
-            <input
-              id="email"
-              type="text"
-              className="input"
-              placeholder="Enter your username or email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              disabled={isLoading}
-            />
-          </div>
+        <div className="login-form-container">
+          <h2 className="form-title">Login</h2>
+          <p className="form-instructions">Enter your credentials to access the dashboard</p>
           
-          <div className="form-group">
-            <label htmlFor="password">Password</label>
-            <input
-              id="password"
-              type="password"
-              className="input"
-              placeholder="Enter your password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
+          <form onSubmit={handleSubmit} className="login-form">
+            <div className="form-group">
+              <label htmlFor="email">Email</label>
+              <input
+                id="email"
+                type="text"
+                className="input"
+                placeholder="Enter your email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                disabled={isLoading}
+              />
+            </div>
+            
+            <div className="form-group">
+              <label htmlFor="password">Password</label>
+              <input
+                id="password"
+                type="password"
+                className="input"
+                placeholder="Enter your password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                disabled={isLoading}
+              />
+            </div>
+            
+            <button 
+              type="submit" 
+              className="btn btn-primary" 
               disabled={isLoading}
-            />
-          </div>
-          
-          <button 
-            type="submit" 
-            className="btn btn-primary" 
-            disabled={isLoading}
-          >
-            {isLoading ? 'Signing in...' : 'Sign In'}
-          </button>
-        </form>
+            >
+              {isLoading ? 'Logging in...' : 'Login'}
+            </button>
+          </form>
+        </div>
       </div>
     </div>
   );
