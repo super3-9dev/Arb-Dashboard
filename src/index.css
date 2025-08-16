@@ -568,7 +568,7 @@ body {
 
 .odds-container {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   gap: 8px;
   align-items: flex-end;
 }
