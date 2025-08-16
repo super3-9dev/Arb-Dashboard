@@ -15,6 +15,10 @@ body {
   min-height: 100vh;
   color: #ffffff;
   line-height: 1.6;
+  /* Smooth scroll behavior */
+  scroll-behavior: smooth;
+  /* Prevent scroll chaining on mobile */
+  overscroll-behavior: contain;
 }
 
 .app {
@@ -256,6 +260,7 @@ body {
   box-shadow: 
     0 12px 35px rgba(255, 255, 255, 0.4),
     0 8px 20px rgba(0, 0, 0, 0.15);
+  color: white;
 }
 
 .btn-primary:active {
@@ -400,7 +405,15 @@ body {
   display: flex;
   position: relative;
   min-height: calc(100vh - 120px);
+  /* Smooth transition when modal opens */
+  transition: filter 0.3s ease;
 }
+
+/* Apply blur effect to main content when modal is open */
+/* .dashboard-content.modal-open {
+  filter: blur(2px);
+  pointer-events: none;
+} */
 
 .opportunities-list {
   flex: 1;
@@ -686,12 +699,33 @@ body {
 }
 
 /* Filters Sidebar - Modal Design */
+.filter-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  z-index: 150;
+  animation: fadeIn 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
 .filters-sidebar {
   position: fixed;
-  top: 120px;
+  top: 0;
   right: 0;
   width: 380px;
-  height: calc(100vh - 120px);
+  height: 100vh;
   background: linear-gradient(135deg, #1e2332 0%, #1a1f2e 100%);
   border-left: 1px solid rgba(255, 255, 255, 0.1);
   padding: 0;
@@ -699,6 +733,10 @@ body {
   z-index: 200;
   box-shadow: -8px 0 30px rgba(0, 0, 0, 0.4);
   animation: slideInRight 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  /* Ensure content doesn't overflow */
+  box-sizing: border-box;
+  /* Prevent horizontal scroll */
+  overflow-x: hidden;
 }
 
 @keyframes slideInRight {
@@ -955,6 +993,7 @@ body {
 
 .range-number-input {
   flex: 1;
+  width: 50px;
   padding: 8px 12px;
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.1);
@@ -1041,7 +1080,13 @@ body {
   .filters-sidebar {
     width: 100%;
     right: 0;
-    top: 120px;
+    top: 0;
+  }
+  
+  .filter-overlay {
+    /* Ensure overlay covers the entire screen on mobile */
+    width: 100vw;
+    height: 100vh;
   }
 }
 

@@ -99,6 +99,19 @@ export default function Dashboard() {
     return 'other'
   }
 
+  // Prevent body scroll when filters are open
+  useEffect(() => {
+    if (showFilters) {
+      document.body.style.overflow = 'hidden'
+    } else {
+      document.body.style.overflow = 'unset'
+    }
+    
+    return () => {
+      document.body.style.overflow = 'unset'
+    }
+  }, [showFilters])
+
   useEffect(() => {
     // Add sample data for testing - remove this when real data is working
     const sampleData: Opportunity[] = [
@@ -393,13 +406,7 @@ export default function Dashboard() {
         </div>
 
         <div className="header-right">
-          <button
-            className={`icon-button ${soundEnabled ? 'active' : ''}`}
-            onClick={() => setSoundEnabled(!soundEnabled)}
-            title={soundEnabled ? 'Sound On' : 'Sound Off'}
-          >
-            🔊
-          </button>
+        
           <button
             className={`icon-button ${showFilters ? 'active' : ''}`}
             onClick={() => setShowFilters(!showFilters)}
@@ -424,7 +431,7 @@ export default function Dashboard() {
       </header>
 
       {/* Main Content */}
-      <div className="dashboard-content">
+      <div className={`dashboard-content ${showFilters ? 'modal-open' : ''}`}>
         <main className="opportunities-list">
           {filtered.length > 0 ? (
             filtered.map((opp) => (
@@ -494,9 +501,17 @@ export default function Dashboard() {
           )}
         </main>
 
-        {/* Filters Sidebar - Modal */}
+        {/* Filter Modal Overlay */}
         {showFilters && (
-          <aside className="filters-sidebar">
+          <div 
+            className="filter-overlay"
+            onClick={() => setShowFilters(false)}
+          />
+        )}
+
+        {/* Filters Sidebar */}
+        {showFilters && (
+          <aside className="filters-sidebar" onClick={(e) => e.stopPropagation()}>
             <div className="filters-header">
               <h3 className="filters-title">Filters</h3>
               <p className="filters-subtitle">Filter arbitrage opportunities</p>
