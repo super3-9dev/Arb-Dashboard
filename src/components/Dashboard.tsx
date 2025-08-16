@@ -442,9 +442,7 @@ export default function Dashboard() {
         <main className="opportunities-list">
           {filtered.length > 0 ? (
             filtered.map((opp) => (
-                <div className="opportunity-item" key={opp.id} onClick={() => {
-                  window.open(opp.provider_url, '_blank')
-                }}>
+                <div className="opportunity-item" key={opp.id}>
                   <div className="opportunity-left">
                     <div className="sport-icon-container">
                       <div className="sport-icon">{getSportIcon(opp.sport)}</div>
@@ -476,12 +474,12 @@ export default function Dashboard() {
                   <div className="opportunity-right">
                     <div className="arbitrage-percentage">{opp.arb_percentage.toFixed(1)}%</div>
                     <div className="odds-container">
-                      <div className="odds-pair">
+                      <div className="odds-pair" onClick={() => window.open(opp.provider_url, '_blank')}>
                         <span className="odds-value green">{opp.back_odds?.toFixed(2) || '5.10'}</span>
                         <span className="provider-name">{opp.provider}</span>
                         <span className="liquidity">({opp.betfair_lay_size || 54})</span>
                       </div>
-                      <div className="odds-pair">
+                      <div className="odds-pair" onClick={() => window.open(`https://www.betfair.com/exchange/plus/${opp.sport === 'soccer' ? 'football' : opp.sport}/market/${opp.betfair_market_id}`, '_blank')}>
                         <span className="odds-value red">{opp.lay_odds?.toFixed(2) || '2.54'}</span>
                         <span className="provider-name">Betfair</span>
                         <span className="liquidity">(188)</span>
