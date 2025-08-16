@@ -26,7 +26,7 @@ export default function Dashboard() {
   const [selectedExchanger, setSelectedExchanger] = useState<'betfair' | 'betdaq' | 'smarkets'>('betfair')
   
   // Filter states
-  const [selectedSports, setSelectedSports] = useState<string[]>(['football'])
+  const [selectedSports, setSelectedSports] = useState<string[]>(['soccer'])
   const [selectedMarkets, setSelectedMarkets] = useState<string[]>(['over-under', 'match-odds', 'half-time'])
   const [selectedSelections, setSelectedSelections] = useState<string[]>(['over', 'other'])
   const [selectedProviders, setSelectedProviders] = useState<string[]>(['golbet724', 'golbet724_pre', 'papa', 'onwin'])
@@ -38,66 +38,10 @@ export default function Dashboard() {
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const socketRef = useRef<Socket | null>(null)
 
-  // Sample data for testing - remove this when real data is working
-  const sampleOpportunities: Opportunity[] = [
-    {
-      id: '1',
-      provider: 'golbet724',
-      sport: 'football',
-      market_name: 'Manchester United vs Liverpool',
-      runner: 'Over 2.5 Goals',
-      arb_percentage: 45.2,
-      lastSeen: Date.now() - 300000, // 5 minutes ago
-      betfair_url: 'https://betfair.com',
-      betfair_market_id: '12345',
-      event_id_betfair: '67890',
-      event_id_provider: '11111'
-    },
-    {
-      id: '2',
-      provider: 'papa',
-      sport: 'football',
-      market_name: 'Arsenal vs Chelsea',
-      runner: 'Arsenal',
-      arb_percentage: 38.7,
-      lastSeen: Date.now() - 600000, // 10 minutes ago
-      betfair_url: 'https://betfair.com',
-      betfair_market_id: '12346',
-      event_id_betfair: '67891',
-      event_id_provider: '11112'
-    },
-    {
-      id: '3',
-      provider: 'onwin',
-      sport: 'basketball',
-      market_name: 'Lakers vs Warriors',
-      runner: 'Over 220.5 Points',
-      arb_percentage: 42.1,
-      lastSeen: Date.now() - 900000, // 15 minutes ago
-      betfair_url: 'https://betfair.com',
-      betfair_market_id: '12347',
-      event_id_betfair: '67892',
-      event_id_provider: '11113'
-    },
-    {
-      id: '4',
-      provider: 'golbet724_pre',
-      sport: 'tennis',
-      market_name: 'Djokovic vs Nadal',
-      runner: 'Djokovic',
-      arb_percentage: 35.8,
-      lastSeen: Date.now() - 1200000, // 20 minutes ago
-      betfair_url: 'https://betfair.com',
-      betfair_market_id: '12348',
-      event_id_betfair: '67893',
-      event_id_provider: '11114'
-    }
-  ]
-
   // Filter options
   const filterOptions = {
     sports: [
-      { value: 'football', label: 'Football' },
+      { value: 'soccer', label: 'Soccer' },
       { value: 'basketball', label: 'Basketball' },
       { value: 'tennis', label: 'Tennis' },
       { value: 'other', label: 'Other' }
@@ -146,8 +90,6 @@ export default function Dashboard() {
   }
 
   useEffect(() => {
-    // Add sample data for testing - remove this when real data is working
-    setOpps(sampleOpportunities)
     
     const token = localStorage.getItem('authToken')
     if (!token) {
@@ -375,7 +317,7 @@ export default function Dashboard() {
   // Get sport icon
   const getSportIcon = (sport: string) => {
     switch (sport.toLowerCase()) {
-      case 'football': return '⚽'
+      case 'soccer': return '⚽'
       case 'basketball': return '🏀'
       case 'tennis': return '🎾'
       default: return '⭐'
@@ -456,29 +398,8 @@ export default function Dashboard() {
                   <div className="sport-icon">{getSportIcon(opp.sport)}</div>
                   <div className="match-details">
                     <div className="team-names">{opp.market_name}</div>
-                    <div className="league-name">{opp.sport}</div>
                     <div className="market-type">{opp.market_name}</div>
                     <div className="selection-highlight">{opp.runner}</div>
-                  </div>
-                  <div className="time-info">
-                    <span className="timestamp">
-                      {new Date(opp.lastSeen).toLocaleTimeString('en-GB', { 
-                        hour: '2-digit', 
-                        minute: '2-digit' 
-                      })}
-                    </span>
-                    <div className="action-icons">
-                      <a 
-                        href={generateExchangerUrl(selectedExchanger, opp.sport, opp.betfair_market_id, opp.event_id_betfair)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="calendar-icon"
-                        title="View on Exchange"
-                      >
-                        📄
-                      </a>
-                      <span className="delete-icon" title="Delete">🗑️</span>
-                    </div>
                   </div>
                 </div>
                 
