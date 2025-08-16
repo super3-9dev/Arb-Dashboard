@@ -41,7 +41,7 @@ export default function Dashboard() {
   const [selectedSelections, setSelectedSelections] = useState<string[]>(['over', 'other'])
   const [selectedProviders, setSelectedProviders] = useState<string[]>(['golbet724', 'golbet724_pre', 'papa', 'onwin'])
   const [arbMinPercentage, setArbMinPercentage] = useState(-1)
-  const [arbMaxPercentage, setArbMaxPercentage] = useState(50)
+  const [arbMaxPercentage, setArbMaxPercentage] = useState(30)
   const [oddsMin, setOddsMin] = useState(1.00)
   const [oddsMax, setOddsMax] = useState(20.00)
 
@@ -269,7 +269,14 @@ export default function Dashboard() {
       arbMaxPercentage
     })
 
-    const filtered = opps.filter(o => {
+    const newOpps = opps.map(o => {
+      return {
+        ...o,
+        arb_percentage: ((o.back_odds - o.lay_odds) / o.lay_odds) * 100
+      }
+    })
+
+    const filtered = newOpps.filter(o => {
       // Filter by arbitrage percentage range
       if (o.arb_percentage < arbMinPercentage || o.arb_percentage > arbMaxPercentage) return false
 
