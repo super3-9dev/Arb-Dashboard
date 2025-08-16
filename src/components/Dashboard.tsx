@@ -442,8 +442,9 @@ export default function Dashboard() {
         <main className="opportunities-list">
           {filtered.length > 0 ? (
             filtered.map((opp) => (
-              <a href={opp.provider_url || generateExchangerUrl(selectedExchanger, opp.sport, opp.betfair_market_id, opp.event_id_betfair)} target="_blank" rel="noopener noreferrer" key={opp.id}>
-                <div className="opportunity-item">
+                <div className="opportunity-item" key={opp.id} onClick={() => {
+                  window.open(opp.provider_url, '_blank')
+                }}>
                   <div className="opportunity-left">
                     <div className="sport-icon-container">
                       <div className="sport-icon">{getSportIcon(opp.sport)}</div>
@@ -488,7 +489,6 @@ export default function Dashboard() {
                     </div>
                   </div>
                 </div>
-              </a>
             ))
           ) : (
             <div className="no-opportunities">
