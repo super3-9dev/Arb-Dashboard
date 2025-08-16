@@ -479,7 +479,7 @@ export default function Dashboard() {
                         <span className="provider-name">{opp.provider}</span>
                         <span className="liquidity">({opp.betfair_lay_size || 54})</span>
                       </div>
-                      <div className="odds-pair" onClick={() => window.open(`https://www.betfair.com/exchange/plus/${opp.sport === 'soccer' ? 'football' : opp.sport}/market/${opp.betfair_market_id}`, '_blank')}>
+                      <div className="odds-pair" onClick={() => window.open(opp.sport === 'soccer' ? `https://orbitxch.com/customer/sport/1/market/${opp.betfair_market_id}` : `https://www.betfair.com/exchange/plus/${opp.sport}/market/${opp.betfair_market_id}`, '_blank')}>
                         <span className="odds-value red">{opp.lay_odds?.toFixed(2) || '2.54'}</span>
                         <span className="provider-name">Betfair</span>
                         <span className="liquidity">(188)</span>
