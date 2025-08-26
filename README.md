@@ -1,127 +1,125 @@
-# Arb Dashboard
+# Arb Tracker Dashboard
 
-A real-time arbitrage betting dashboard built with React, TypeScript, and Vite. This application provides live monitoring of betting opportunities across multiple providers with WebSocket connectivity.
+A real-time dashboard for tracking arbitrage opportunities from multiple data sources.
 
 ## Features
 
-- **Real-time Data**: Live WebSocket connection for instant updates
-- **Authentication**: Secure login system with JWT tokens
-- **Responsive Design**: Mobile-friendly interface that adapts to all screen sizes
-- **Toast Notifications**: User-friendly feedback using Sonner toast library
-- **Filtering**: Advanced filtering by providers, markets, selections, and sports
-- **Sound Alerts**: Configurable audio notifications for new opportunities
-- **Exchange Integration**: Support for Betfair, Betdaq, and Smarkets
+- **Real-time Data**: WebSocket connection to backend for live updates
+- **Arbitrage Detection**: Automatically finds matches with same team names across data sources
+- **Profit Calculation**: Calculates potential profit percentage for each opportunity
+- **Dual Data Sources**: Golbet724 and orbitxch data comparison
+- **Responsive Design**: Works on desktop and mobile devices
+- **Auto-reconnection**: Automatically reconnects if connection is lost
 
-## Tech Stack
+## How It Works
 
-- **Frontend**: React 18 + TypeScript
-- **Build Tool**: Vite
-- **Routing**: React Router DOM
-- **Real-time**: Socket.IO Client
-- **Notifications**: Sonner (Toast notifications)
-- **Styling**: CSS with responsive design
+The dashboard receives data from two sources:
+1. **Golbet724**: From golbet724 scraper
+2. **orbitxch**: From orbitxch scraper
+
+It then automatically:
+- Matches teams with identical names (case-insensitive)
+- Calculates profit potential between the two sources
+- Displays only opportunities where the same match appears in both sources
+- Sorts opportunities by profit percentage (highest first)
 
 ## Prerequisites
 
-- Node.js (version 16 or higher)
-- npm or yarn package manager
+- Node.js 16+ 
+- Backend server running on port 8000
 
 ## Installation
 
-1. Clone the repository:
-```bash
-git clone <repository-url>
-cd arb-dashboard
-```
-
-2. Install dependencies:
+1. Install dependencies:
 ```bash
 npm install
 ```
 
-3. Start the development server:
+2. Start the development server:
 ```bash
 npm run dev
 ```
 
-4. Open your browser and navigate to `http://localhost:5173`
+3. Build for production:
+```bash
+npm run build
+```
 
-## Available Scripts
+4. Preview production build:
+```bash
+npm run preview
+```
 
-- `npm run dev` - Start development server
-- `npm run build` - Build for production
-- `npm run preview` - Preview production build
+## Backend Connection
+
+The frontend connects to the backend via WebSocket at `ws://localhost:8000/ws`. Make sure your backend server is running before starting the frontend.
+
+## Data Structure
+
+The dashboard receives data in the following format:
+
+```typescript
+interface WebSocketData {
+  api_data: MatchData[];    // From golbet724 scraper
+  dom_data: MatchData[];    // From orbitxch scraper
+}
+
+interface MatchData {
+  id: string;               // Unique match identifier
+  team_1: string;          // Home team
+  team_2: string;          // Away team  
+  average: number;          // Average odds
+}
+```
+
+And creates arbitrage opportunities:
+
+```typescript
+interface ArbitrageOpportunity {
+  id: string;               // Combined ID from both sources
+  team_1: string;          // Home team name
+  team_2: string;          // Away team name
+  api_odds: number;        // Odds from Golbet724 source
+  dom_odds: number;        // Odds from orbitxch source
+  api_source: string;      // Source label (Golbet724)
+  dom_source: string;      // Source label (orbitxch)
+  profit_percentage: number; // Calculated profit potential
+}
+```
+
+## Development
+
+- Built with React 18 + TypeScript
+- Vite for fast development and building
+- Sonner for toast notifications
+- CSS Grid and Flexbox for responsive layout
 
 ## Project Structure
 
 ```
 src/
 ├── components/
-│   ├── Dashboard.tsx      # Main dashboard component
-│   ├── Login.tsx          # Authentication component
-│   └── ProtectedRoute.tsx # Route protection wrapper
-├── lib/
-│   └── constants.ts       # Application constants
-├── App.tsx                # Main application component
-├── main.tsx              # Application entry point
-└── index.css             # Global styles
+│   └── Dashboard.tsx    # Main dashboard component with arbitrage logic
+├── App.tsx              # App routing
+├── main.tsx             # Entry point
+└── index.css            # Global styles
 ```
 
-## Configuration
+## Profit Calculation
 
-The application connects to external services:
-
-- **WebSocket**: `https://ws.arbitragex.pro`
-- **Login API**: `https://login.arbitragex.pro/login`
-
-## Features
-
-### Dashboard
-- Real-time arbitrage opportunity monitoring
-- Provider and market filtering
-- Sport and selection categorization
-- Expiring opportunity alerts
-- Sound notifications with volume control
-- Debug mode for development
-
-### Authentication
-- JWT token-based authentication
-- Secure token storage
-- Automatic token validation
-- Redirect to login on authentication failure
-
-### Responsive Design
-- Mobile-first approach
-- Adaptive layouts for all screen sizes
-- Touch-friendly interface elements
-
-## Development
-
-This project uses:
-- **TypeScript** for type safety
-- **ESLint** for code quality (if configured)
-- **Prettier** for code formatting (if configured)
-
-## Building for Production
-
-```bash
-npm run build
+The profit percentage is calculated using the formula:
+```
+profit_percentage = ((max_odds / min_odds) - 1) * 100
 ```
 
-The built files will be in the `dist/` directory, ready for deployment.
+This shows the potential profit if you bet on the higher odds and lay on the lower odds.
 
-## Contributing
+## UI Features
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Test thoroughly
-5. Submit a pull request
-
-## License
-
-This project is private and proprietary.
-
-## Support
-
-For support or questions, please contact the development team.
+- **Connection Status**: Positioned in the top-right corner showing connection state
+- **Statistics Cards**: Display match counts from both sources and found opportunities
+- **Arbitrage Cards**: Show detailed information for each opportunity including:
+  - Profit percentage badge
+  - Team names with color coding
+  - Odds comparison between sources
+  - Profitability indicator
