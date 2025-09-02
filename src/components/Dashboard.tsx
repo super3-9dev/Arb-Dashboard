@@ -51,7 +51,7 @@ export default function Dashboard() {
           // Calculate profit percentage
           console.log(apiMatch.team_1, apiMatch.team_2, domMatch.team_1, domMatch.team_2)
           const profit_percentage = ((Math.max(apiMatch.average, domMatch.average) / Math.min(apiMatch.average, domMatch.average)) - 1) * 100;
-          
+          if (profit_percentage > -1 && profit_percentage < 30) {
           opportunities.push({
             id: `${apiMatch.id}_${domMatch.id}`,
             team_1: apiMatch.team_1,
@@ -62,7 +62,8 @@ export default function Dashboard() {
             dom_source: 'orbitxch',
             profit_percentage: profit_percentage,
             market_id: domMatch.market_id
-          });
+            });
+          }
         }
       });
     });
@@ -73,7 +74,7 @@ export default function Dashboard() {
 
   const connectWebSocket = () => {
     try {
-      const ws = new WebSocket('ws://localhost:8000/ws');
+      const ws = new WebSocket(import.meta.env.VITE_BACKEND_WS);
       
       ws.onopen = () => {
         console.log('WebSocket connected to backend');
