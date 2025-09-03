@@ -7,6 +7,9 @@ interface MatchData {
   team_2: string;
   average: number;
   market_id: string;
+  match_time: string;
+  score_1: number;
+  score_2: number;
 }
 
 interface WebSocketData {
@@ -24,6 +27,9 @@ interface ArbitrageOpportunity {
   dom_source: string;
   profit_percentage: number;
   market_id: string;
+  match_time: string;
+  score_1: number;
+  score_2: number;
 }
 
 export default function Dashboard() {
@@ -61,7 +67,10 @@ export default function Dashboard() {
               api_source: 'Golbet724',
               dom_source: 'orbitxch',
               profit_percentage: profit_percentage,
-              market_id: domMatch.market_id
+              market_id: domMatch.market_id,
+              match_time: domMatch.match_time,
+              score_1: domMatch.score_1,
+              score_2: domMatch.score_2
             });
           }
         }
@@ -155,6 +164,10 @@ export default function Dashboard() {
         <span className="profit-badge">
           {opportunity.profit_percentage > 0 ? '+' : ''}{opportunity.profit_percentage.toFixed(2)}%
         </span>
+        <div className="match-info">
+          <span className="match-time">{opportunity.match_time}</span>
+          <span className="match-score">{opportunity.score_1} - {opportunity.score_2}</span>
+        </div>
       </div>
 
       <div className="teams">
