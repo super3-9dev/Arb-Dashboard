@@ -83,7 +83,7 @@ export default function Dashboard() {
 
   const connectWebSocket = () => {
     try {
-      const ws = new WebSocket("wss://90e4e773bc2a.ngrok-free.app/ws");
+      //const ws = new WebSocket("wss://90e4e773bc2a.ngrok-free.app/ws");
 
       ws.onopen = () => {
         console.log('WebSocket connected to backend');
